@@ -13,7 +13,7 @@
 
 ## 效果预览
 
-<img width="631" height="125" alt="image" src="https://github.com/user-attachments/assets/acd7c597-ef93-4bbb-a0ff-86f90c9298a8" />
+<img width="2530" height="843" alt="image" src="https://github.com/user-attachments/assets/54be9f83-6238-4d3b-9607-ef06e69cbd40" />
 
 
 ## 安装使用
