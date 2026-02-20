@@ -38,13 +38,13 @@
 <img width="556" height="778" alt="image" src="https://github.com/user-attachments/assets/b0c932b6-7f02-44ba-b704-3b528ab3658a" />
 
 
-## 自定义字体图片
+## 自定义字体
+### 详见 [`clock_font_img/`](clock_font_img/) 目录
 
 本项目包含 `clock_font_img` 目录，提供了生成自定义字体图片的工具：
 
 - 使用 Python 编写
 - 可生成自定义样式的数字图片
-- 详见 [`clock_font_img/`](clock_font_img/) 目录
 
 ## 技术规格
 
