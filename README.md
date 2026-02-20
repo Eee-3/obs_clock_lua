@@ -18,7 +18,7 @@
 
 ## 安装使用
 ### 1. 下载脚本及资源
-1. 从Release下载最新脚本[压缩包](https://github.com/Eee-3/obs_clock_lua/releases/download/latest/obs_clock_lua.zip)
+1. 从Release下载最新脚本[压缩包](https://github.com/Eee-3/obs_clock_lua/releases/latest/download/obs_clock_lua.zip)
 
 ### 2. 加载脚本
 
