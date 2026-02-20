@@ -1,6 +1,6 @@
 # OBS 毫秒级时钟
 
-一个用于 OBS Studio 的 Lua 脚本，以图片形式显示毫秒级精度的时钟。
+一个用于 OBS Studio 的 Lua 脚本，以图片形式显示**日期**以及毫秒级精度的**时钟**。
 
 ## 功能特性
 
@@ -17,32 +17,26 @@
 
 
 ## 安装使用
-
-### 1. 准备图片资源
-
-在脚本所在目录下创建 `obs_clock` 文件夹，并放入以下图片文件：
-
-| 文件名 | 说明 |
-|--------|------|
-| `0.png` - `9.png` | 数字 0-9 的图片 |
-| `and.png` | 时间分隔符（冒号 `:`） |
-| `slash.png` | 日期分隔符（斜杠 `/`） |
-| `dot.png` | 毫秒分隔符（小数点 `.`） |
-
-> 图片尺寸建议：宽 22 像素，高 30 像素
+### 1. 下载脚本及资源
+1. 从Release下载最新脚本压缩包
 
 ### 2. 加载脚本
 
 1. 打开 OBS Studio
 2. 菜单栏选择 `工具` → `脚本`
+ <img width="2560" height="484" alt="image" src="https://github.com/user-attachments/assets/7cb7c0c2-c50b-44ca-9db5-18dfdc823be9" />
+
 3. 点击 `+` 按钮，选择 `obs_clock.lua` 文件
-4. 脚本加载成功后，在源列表中添加 `日期与毫秒级时间` 源
+ <img width="1013" height="698" alt="image" src="https://github.com/user-attachments/assets/56a9acf1-575a-4d04-a0a6-72e5e35c6f48" />
+
 
 ### 3. 添加时钟源
 
 1. 在场景中点击 `+` 添加新源
 2. 选择 `日期与毫秒级时间`
 3. 时钟将显示在画面中
+<img width="556" height="778" alt="image" src="https://github.com/user-attachments/assets/b0c932b6-7f02-44ba-b704-3b528ab3658a" />
+
 
 ## 自定义字体图片
 
