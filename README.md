@@ -82,7 +82,7 @@ obs_clock_lua/
 
 ## 来源声明
 
-Lua 脚本基于 [imfuding/obs_ms_clock](https://github.com/imfeding/obs_ms_clock) 项目。
+Lua 脚本基于 [imfuding/obs_ms_clock](https://github.com/imfuding/obs_ms_clock) 项目。
 
 ## 许可证
 
