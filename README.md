@@ -13,12 +13,8 @@
 
 ## 效果预览
 
-```
-┌─────────────────────┐
-│    2026/02/20       │
-│   16:13:21.849      │
-└─────────────────────┘
-```
+<img width="631" height="125" alt="image" src="https://github.com/user-attachments/assets/acd7c597-ef93-4bbb-a0ff-86f90c9298a8" />
+
 
 ## 安装使用
 
