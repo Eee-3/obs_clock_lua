@@ -1,393 +1,117 @@
 """
 生成时钟字体图片 - TUI版本
-使用Textual框架提供交互式界面，支持字体搜索和自定义字符
+使用pick库提供交互式界面，支持实时搜索字体
 """
 
 import os
+import platform
+import sys
 from pathlib import Path
-from typing import ClassVar
 
-from fonttools.ttLib import TTCollection, TTFont
+from pick import pick
 from PIL import Image, ImageDraw, ImageFont
-from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import (
-    Button,
-    Footer,
-    Header,
-    Input,
-    Label,
-    Static,
-    ListView,
-    ListItem,
-    Log,
-)
 
 
-class FontItem(ListItem):
-    """字体列表项"""
-
-    def __init__(self, font_path: str, font_name: str, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.font_path = font_path
-        self.font_name = font_name
-
-    def compose(self) -> ComposeResult:
-        yield Label(self.font_name)
-
-
-class FontGeneratorApp(App):
-    """字体图片生成器TUI应用"""
-
-    CSS: ClassVar[str] = """
-    Screen {
-        layout: vertical;
-    }
-
-    .main-container {
-        layout: horizontal;
-        height: 1fr;
-    }
-
-    .left-panel {
-        width: 1fr;
-        padding: 1;
-        border-right: solid $primary;
-    }
-
-    .right-panel {
-        width: 2fr;
-        padding: 1;
-    }
-
-    .search-container {
-        height: auto;
-        margin-bottom: 1;
-    }
-
-    #search-input {
-        width: 1fr;
-    }
-
-    #font-list {
-        height: 1fr;
-        border: solid $primary;
-    }
-
-    .settings-container {
-        height: auto;
-        margin-bottom: 1;
-    }
-
-    .setting-row {
-        layout: horizontal;
-        height: auto;
-        margin-bottom: 1;
-    }
-
-    .setting-label {
-        width: 15;
-        padding: 1;
-    }
-
-    .setting-input {
-        width: 1fr;
-    }
-
-    .preview-container {
-        height: 1fr;
-        border: solid $primary;
-        padding: 1;
-    }
-
-    #preview-log {
-        height: 1fr;
-    }
-
-    .button-row {
-        height: auto;
-        layout: horizontal;
-        margin-top: 1;
-    }
-
-    Button {
-        margin-right: 1;
-    }
-
-    .status-bar {
-        height: 1;
-        background: $primary;
-        color: $text-on-primary;
-        padding: 0 1;
-    }
+def get_system_fonts() -> list[tuple[str, str]]:
     """
+    从系统获取字体列表
+    Windows: 使用注册表（高效，不占用内存）
+    macOS/Linux: 扫描字体目录（仅顶层）
+    """
+    fonts: list[tuple[str, str]] = []
 
-    TITLE: str = "时钟字体图片生成器"
-    BINDINGS: ClassVar = [
-        ("q", "quit", "退出"),
-        ("g", "generate", "生成图片"),
-        ("r", "refresh_fonts", "刷新字体列表"),
-    ]
+    if platform.system() == "Windows":
+        import winreg
 
-    # 系统字体目录
-    FONT_DIRS: ClassVar[list[str]] = []
+        font_dirs = [
+            os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts"),
+            os.path.expanduser("~\\AppData\\Local\\Microsoft\\Windows\\Fonts"),
+        ]
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.all_fonts: list[tuple[str, str]] = []  # (path, name)
-        self.selected_font_path: str | None = None
-        self._init_font_dirs()
-
-    def _init_font_dirs(self) -> None:
-        """初始化系统字体目录"""
-        if os.name == "nt":  # Windows
-            windir = os.environ.get("WINDIR", "C:\\Windows")
-            self.FONT_DIRS = [
-                os.path.join(windir, "Fonts"),
-                os.path.expanduser("~\\AppData\\Local\\Microsoft\\Windows\\Fonts"),
+        try:
+            reg_keys = [
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"),
+                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"),
             ]
-        elif os.name == "posix":
-            if os.uname().sysname == "Darwin":  # macOS
-                self.FONT_DIRS = [
-                    "/System/Library/Fonts",
-                    "/Library/Fonts",
-                    os.path.expanduser("~/Library/Fonts"),
-                ]
-            else:  # Linux
-                self.FONT_DIRS = [
-                    "/usr/share/fonts",
-                    "/usr/local/share/fonts",
-                    os.path.expanduser("~/.fonts"),
-                    os.path.expanduser("~/.local/share/fonts"),
-                ]
 
-    def compose(self) -> ComposeResult:
-        yield Header()
-        with Container(classes="main-container"):
-            with Container(classes="left-panel"):
-                with Container(classes="search-container"):
-                    yield Label("搜索字体:")
-                    yield Input(
-                        placeholder="输入字体名称搜索...",
-                        id="search-input",
-                    )
-                yield Label("字体列表:")
-                yield ListView(id="font-list")
-            with Container(classes="right-panel"):
-                with Container(classes="settings-container"):
-                    yield Label("生成设置")
-                    with Container(classes="setting-row"):
-                        yield Label("输出目录:", classes="setting-label")
-                        yield Input(
-                            value="../obs_clock",
-                            placeholder="输出目录路径",
-                            id="output-dir",
-                            classes="setting-input",
-                        )
-                    with Container(classes="setting-row"):
-                        yield Label("图片宽度:", classes="setting-label")
-                        yield Input(
-                            value="22",
-                            placeholder="图片宽度(像素)",
-                            id="img-width",
-                            classes="setting-input",
-                        )
-                    with Container(classes="setting-row"):
-                        yield Label("图片高度:", classes="setting-label")
-                        yield Input(
-                            value="30",
-                            placeholder="图片高度(像素)",
-                            id="img-height",
-                            classes="setting-input",
-                        )
-                    with Container(classes="setting-row"):
-                        yield Label("生成字符:", classes="setting-label")
-                        yield Input(
-                            value="0123456789:/.",
-                            placeholder="要生成的字符",
-                            id="chars",
-                            classes="setting-input",
-                        )
-                with Container(classes="preview-container"):
-                    yield Label("预览/日志:")
-                    yield Log(id="preview-log")
-                with Container(classes="button-row"):
-                    yield Button("生成图片", id="generate-btn", variant="primary")
-                    yield Button("刷新字体", id="refresh-btn")
-        yield Footer()
-
-    def on_mount(self) -> None:
-        """应用启动时加载字体"""
-        self.call_later(self._load_fonts)
-
-    async def _load_fonts(self) -> None:
-        """加载系统字体"""
-        log = self.query_one("#preview-log", Log)
-        log.write_line("正在扫描系统字体...")
-
-        self.all_fonts = []
-
-        for font_dir in self.FONT_DIRS:
-            if not os.path.exists(font_dir):
-                continue
-
-            for root, _, files in os.walk(font_dir):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    ext = os.path.splitext(file)[1].lower()
-
-                    if ext in (".ttf", ".otf"):
+            for hkey, subkey in reg_keys:
+                try:
+                    key = winreg.OpenKey(hkey, subkey, 0, winreg.KEY_READ)
+                    i = 0
+                    while True:
                         try:
-                            font = TTFont(file_path)
-                            font_name = self._get_font_name(font)
-                            if font_name:
-                                self.all_fonts.append((file_path, font_name))
-                            font.close()
-                        except Exception:
-                            pass
-                    elif ext == ".ttc":
-                        try:
-                            ttc = TTCollection(file_path)
-                            for i, font in enumerate(ttc.fonts):
-                                font_name = self._get_font_name(font)
-                                if font_name:
-                                    self.all_fonts.append(
-                                        (f"{file_path}:{i}", font_name)
-                                    )
-                        except Exception:
-                            pass
+                            name, value, _ = winreg.EnumValue(key, i)
+                            if isinstance(value, str):
+                                for font_dir in font_dirs:
+                                    font_path = os.path.join(font_dir, value)
+                                    if os.path.isfile(font_path):
+                                        display_name = name.split("(")[0].strip()
+                                        fonts.append((font_path, display_name))
+                                        break
+                            i += 1
+                        except OSError:
+                            break
+                    winreg.CloseKey(key)
+                except OSError:
+                    pass
 
-        # 去重并排序
-        seen = set()
-        unique_fonts = []
-        for path, name in self.all_fonts:
-            if name not in seen:
-                seen.add(name)
-                unique_fonts.append((path, name))
-
-        self.all_fonts = sorted(unique_fonts, key=lambda x: x[1].lower())
-
-        log.write_line(f"找到 {len(self.all_fonts)} 个字体")
-        self._update_font_list()
-
-    def _get_font_name(self, font: TTFont) -> str | None:
-        """从字体文件获取字体名称"""
-        try:
-            name_table = font["name"]
-            # 优先获取英文名称
-            for record in name_table.names:
-                if record.nameID == 4:  # Full font name
-                    try:
-                        return record.toUnicode()
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-        return None
-
-    def _update_font_list(self, filter_text: str = "") -> None:
-        """更新字体列表显示"""
-        font_list = self.query_one("#font-list", ListView)
-        font_list.clear()
-
-        filter_lower = filter_text.lower()
-        for path, name in self.all_fonts:
-            if filter_lower and filter_lower not in name.lower():
-                continue
-            font_list.append(FontItem(path, name))
-
-    def on_input_changed(self, event: Input.Changed) -> None:
-        """处理输入变化"""
-        if event.input.id == "search-input":
-            self._update_font_list(event.value)
-
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """处理字体选择"""
-        if event.list_view.id == "font-list":
-            item = event.item
-            if isinstance(item, FontItem):
-                self.selected_font_path = item.font_path
-                log = self.query_one("#preview-log", Log)
-                log.write_line(f"已选择字体: {item.font_name}")
-                log.write_line(f"路径: {item.font_path}")
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        """处理按钮点击"""
-        if event.button.id == "generate-btn":
-            self.action_generate()
-        elif event.button.id == "refresh-btn":
-            self.action_refresh_fonts()
-
-    def action_refresh_fonts(self) -> None:
-        """刷新字体列表"""
-        self._load_fonts()
-
-    def action_generate(self) -> None:
-        """生成图片"""
-        log = self.query_one("#preview-log", Log)
-
-        if not self.selected_font_path:
-            log.write_line("[red]错误: 请先选择一个字体[/red]")
-            return
-
-        # 获取设置
-        output_dir = self.query_one("#output-dir", Input).value
-        width_str = self.query_one("#img-width", Input).value
-        height_str = self.query_one("#img-height", Input).value
-        chars = self.query_one("#chars", Input).value
-
-        try:
-            width = int(width_str)
-            height = int(height_str)
-        except ValueError:
-            log.write_line("[red]错误: 宽度和高度必须是整数[/red]")
-            return
-
-        if not chars:
-            log.write_line("[red]错误: 请输入要生成的字符[/red]")
-            return
-
-        # 处理TTC字体路径
-        font_path = self.selected_font_path
-        if ":" in font_path and font_path.endswith(tuple(f":{i}" for i in range(100))):
-            path, index = font_path.rsplit(":", 1)
-            font_path = path
-
-        log.write_line(f"开始生成...")
-        log.write_line(f"字体: {font_path}")
-        log.write_line(f"输出目录: {output_dir}")
-        log.write_line(f"尺寸: {width}x{height}")
-        log.write_line(f"字符: {chars}")
-
-        try:
-            generate_char_images(font_path, output_dir, width, height, chars, log)
-            log.write_line("[green]生成完成！[/green]")
         except Exception as e:
-            log.write_line(f"[red]生成失败: {e}[/red]")
+            print(f"读取注册表失败: {e}")
+
+    else:
+        if platform.system() == "Darwin":
+            font_dirs = [
+                "/System/Library/Fonts",
+                "/Library/Fonts",
+                os.path.expanduser("~/Library/Fonts"),
+            ]
+        else:
+            font_dirs = [
+                "/usr/share/fonts",
+                "/usr/local/share/fonts",
+                os.path.expanduser("~/.fonts"),
+                os.path.expanduser("~/.local/share/fonts"),
+            ]
+
+        valid_extensions = {".ttf", ".otf", ".ttc"}
+        for font_dir in font_dirs:
+            if not os.path.isdir(font_dir):
+                continue
+            try:
+                for file in os.listdir(font_dir):
+                    ext = os.path.splitext(file)[1].lower()
+                    if ext in valid_extensions:
+                        font_path = os.path.join(font_dir, file)
+                        font_name = os.path.splitext(file)[0]
+                        fonts.append((font_path, font_name))
+            except PermissionError:
+                pass
+
+    # 去重并排序
+    seen = set()
+    unique_fonts = []
+    for path, name in fonts:
+        if name not in seen:
+            seen.add(name)
+            unique_fonts.append((path, name))
+
+    return sorted(unique_fonts, key=lambda x: x[1].lower())
 
 
 def find_optimal_font_size(
     font_path: str, target_width: int, target_height: int, chars: str
 ) -> int | None:
-    """
-    查找最佳字体大小，使字符正好撑满图像
-
-    Args:
-        font_path: 字体文件路径
-        target_width: 目标宽度
-        target_height: 目标高度
-        chars: 要检查的字符列表
-
-    Returns:
-        最佳字体大小，如果找不到则返回None
-    """
+    """查找最佳字体大小"""
     min_size = 1
     max_size = 200
     best_size = None
 
     while min_size <= max_size:
         mid_size = (min_size + max_size) // 2
-        font = ImageFont.truetype(font_path, mid_size)
+        try:
+            font = ImageFont.truetype(font_path, mid_size)
+        except Exception:
+            return None
 
         img = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
@@ -457,58 +181,32 @@ def generate_char_images(
     width: int,
     height: int,
     chars: str,
-    log: Log | None = None,
 ) -> None:
-    """
-    生成字符图片
-
-    Args:
-        font_path: 字体文件路径
-        output_dir: 输出目录
-        width: 图片宽度
-        height: 图片高度
-        chars: 要生成的字符列表
-        log: 日志输出控件
-    """
-    # 创建输出目录
+    """生成字符图片"""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    # 查找最佳字体大小
     font_size = find_optimal_font_size(font_path, width, height, chars)
-
     if font_size is None:
         raise ValueError("无法找到合适的字体大小")
 
-    if log:
-        log.write_line(f"使用字体大小: {font_size}")
+    print(f"使用字体大小: {font_size}")
 
-    # 加载字体
     font = ImageFont.truetype(font_path, font_size)
-
-    # 获取字体的度量信息，用于确定基线位置
     ascent, descent = font.getmetrics()
     total_height = ascent + descent
 
     for char in chars:
-        # 创建透明背景图片
         img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
 
-        # 获取字符的边界框
         bbox = draw.textbbox((0, 0), char, font=font)
         char_width = bbox[2] - bbox[0]
 
-        # 计算水平居中位置
         x = (width - char_width) // 2 - bbox[0]
-
-        # 计算垂直位置：使用基线对齐方式
-        # 将字体总高度在图片中垂直居中，然后字符相对于基线定位
         y = (height - total_height) // 2
 
-        # 绘制白色字符
         draw.text((x, y), char, font=font, fill=(255, 255, 255, 255))
 
-        # 生成文件名
         if char == ":":
             filename = "and.png"
         elif char == "/":
@@ -518,17 +216,76 @@ def generate_char_images(
         else:
             filename = f"{char}.png"
 
-        # 保存图片
         filepath = os.path.join(output_dir, filename)
         img.save(filepath, "PNG")
-        if log:
-            log.write_line(f"已生成: {filepath}")
+        print(f"已生成: {filepath}")
+
+
+def input_with_default(prompt: str, default: str) -> str:
+    """带默认值的输入"""
+    result = input(f"{prompt} [{default}]: ").strip()
+    return result if result else default
 
 
 def main():
     """主函数"""
-    app = FontGeneratorApp()
-    app.run()
+    print("时钟字体图片生成器")
+    print("=" * 40)
+
+    print("正在获取系统字体列表...")
+    fonts = get_system_fonts()
+    print(f"找到 {len(fonts)} 个字体\n")
+
+    if not fonts:
+        print("未找到任何字体！")
+        return
+
+    # 创建字体选择菜单（支持搜索）
+    font_options = [(name, path) for path, name in fonts]
+    
+    selected, index = pick(
+        [name for name, _ in font_options],
+        "选择字体 (输入关键字搜索):",
+    )
+    
+    font_path = font_options[index][1]
+    font_name = selected
+    print(f"\n已选择字体: {font_name}")
+    print(f"字体路径: {font_path}\n")
+
+    # 获取其他设置
+    output_dir = input_with_default("输出目录", "../obs_clock")
+    
+    width_str = input_with_default("图片宽度 (像素)", "22")
+    try:
+        width = int(width_str)
+    except ValueError:
+        print("错误: 宽度必须是整数")
+        return
+
+    height_str = input_with_default("图片高度 (像素)", "30")
+    try:
+        height = int(height_str)
+    except ValueError:
+        print("错误: 高度必须是整数")
+        return
+
+    chars = input_with_default("要生成的字符", "0123456789:/.")
+
+    print(f"\n即将生成 {len(chars)} 个字符图片到 {output_dir}")
+    confirm = input_with_default("确认? (y/n)", "y")
+    
+    if confirm.lower() != "y":
+        print("已取消")
+        return
+
+    # 生成图片
+    print("\n开始生成...")
+    try:
+        generate_char_images(font_path, output_dir, width, height, chars)
+        print("\n生成完成！")
+    except Exception as e:
+        print(f"\n生成失败: {e}")
 
 
 if __name__ == "__main__":
