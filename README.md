@@ -66,7 +66,7 @@ obs_clock_lua/
 │   ├── slash.png          # 斜杠分隔符
 │   └── dot.png            # 小数点分隔符
 └── clock_font_img/        # 字体图片生成工具
-    ��── main.py
+      ── main.py
     └── ...
 ```
 
@@ -76,4 +76,7 @@ Lua 脚本基于 [imfuding/obs_ms_clock](https://github.com/imfuding/obs_ms_cloc
 
 ## 许可证
 
-请参考原项目的许可证信息。
+本项目采用 MIT LICENSE
+除了:
+- **obs_clock** 目录中图片的字体为[Inter 28pt SemiBold Italic](https://github.com/rsms/inter)遵循其原 [OFL-1.1](https://github.com/rsms/inter/blob/master/LICENSE.txt)协议
+- **obs_clock.lua** 中来自[原项目](https://github.com/imfuding/obs_ms_clock)的部分 遵循其原有许可(未指定许可证)
