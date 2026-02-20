@@ -1,7 +1,7 @@
 [project]
 name = "clock-font-img"
 version = "0.1.0"
-description = "Generate clock font images using MiSans font"
+description = "Generate clock font images"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
